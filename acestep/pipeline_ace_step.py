@@ -87,7 +87,7 @@ def ensure_directory_exists(directory):
 
 
 REPO_ID = "ACE-Step/ACE-Step-v1-3.5B"
-REPO_ID_QUANT = REPO_ID + "-q4-K-M" # ??? update this i guess
+REPO_ID_QUANT = REPO_ID + "-q4-K-M"  # ??? update this i guess
 
 
 # class ACEStepPipeline(DiffusionPipeline):
@@ -130,8 +130,8 @@ class ACEStepPipeline:
             self.dtype = torch.float16
         if device.type == "mps":
             self.dtype = torch.float32
-        if 'ACE_PIPELINE_DTYPE' in os.environ and len(os.environ['ACE_PIPELINE_DTYPE']):
-            self.dtype = getattr(torch, os.environ['ACE_PIPELINE_DTYPE'])
+        if "ACE_PIPELINE_DTYPE" in os.environ and len(os.environ["ACE_PIPELINE_DTYPE"]):
+            self.dtype = getattr(torch, os.environ["ACE_PIPELINE_DTYPE"])
         self.device = device
         self.loaded = False
         self.torch_compile = torch_compile
@@ -146,37 +146,49 @@ class ACEStepPipeline:
             torch.cuda.empty_cache()
 
             # Log memory usage if in verbose mode
-            allocated = torch.cuda.memory_allocated() / (1024 ** 3)
-            reserved = torch.cuda.memory_reserved() / (1024 ** 3)
-            logger.info(f"GPU Memory: {allocated:.2f}GB allocated, {reserved:.2f}GB reserved")
+            allocated = torch.cuda.memory_allocated() / (1024**3)
+            reserved = torch.cuda.memory_reserved() / (1024**3)
+            logger.info(
+                f"GPU Memory: {allocated:.2f}GB allocated, {reserved:.2f}GB reserved"
+            )
 
         # Collect Python garbage
         import gc
+
         gc.collect()
 
     def get_checkpoint_path(self, checkpoint_dir, repo):
         checkpoint_dir_models = None
-        
+
         if checkpoint_dir is not None:
-            required_dirs = ["music_dcae_f8c8", "music_vocoder", "ace_step_transformer", "umt5-base"]
+            required_dirs = [
+                "music_dcae_f8c8",
+                "music_vocoder",
+                "ace_step_transformer",
+                "umt5-base",
+            ]
             all_dirs_exist = True
             for dir_name in required_dirs:
                 dir_path = os.path.join(checkpoint_dir, dir_name)
                 if not os.path.exists(dir_path):
                     all_dirs_exist = False
                     break
-            
+
             if all_dirs_exist:
                 logger.info(f"Load models from: {checkpoint_dir}")
                 checkpoint_dir_models = checkpoint_dir
-        
+
         if checkpoint_dir_models is None:
             if checkpoint_dir is None:
                 logger.info(f"Download models from Hugging Face: {repo}")
                 checkpoint_dir_models = snapshot_download(repo)
             else:
-                logger.info(f"Download models from Hugging Face: {repo}, cache to: {checkpoint_dir}")
-                checkpoint_dir_models = snapshot_download(repo, cache_dir=checkpoint_dir)
+                logger.info(
+                    f"Download models from Hugging Face: {repo}, cache to: {checkpoint_dir}"
+                )
+                checkpoint_dir_models = snapshot_download(
+                    repo, cache_dir=checkpoint_dir
+                )
         return checkpoint_dir_models
 
     def load_checkpoint(self, checkpoint_dir=None, export_quantized_weights=False):
@@ -225,7 +237,9 @@ class ACEStepPipeline:
         if self.cpu_offload:
             text_encoder_model = text_encoder_model.to("cpu").eval().to(self.dtype)
         else:
-            text_encoder_model = text_encoder_model.to(self.device).eval().to(self.dtype)
+            text_encoder_model = (
+                text_encoder_model.to(self.device).eval().to(self.dtype)
+            )
         text_encoder_model.requires_grad_(False)
         self.text_encoder_model = text_encoder_model
         if self.torch_compile:
@@ -270,11 +284,15 @@ class ACEStepPipeline:
                 )
                 torch.save(
                     self.text_encoder_model.state_dict(),
-                    os.path.join(text_encoder_checkpoint_path, "pytorch_model_int4wo.bin"),
+                    os.path.join(
+                        text_encoder_checkpoint_path, "pytorch_model_int4wo.bin"
+                    ),
                 )
                 print(
                     "Quantized Weights Saved to: ",
-                    os.path.join(text_encoder_checkpoint_path, "pytorch_model_int4wo.bin"),
+                    os.path.join(
+                        text_encoder_checkpoint_path, "pytorch_model_int4wo.bin"
+                    ),
                 )
 
     def load_quantized_checkpoint(self, checkpoint_dir=None):
@@ -291,28 +309,36 @@ class ACEStepPipeline:
         if self.cpu_offload:
             self.music_dcae.eval().to(self.dtype).to(self.device)
         else:
-            self.music_dcae.eval().to(self.dtype).to('cpu')
+            self.music_dcae.eval().to(self.dtype).to("cpu")
         self.music_dcae = torch.compile(self.music_dcae)
 
-        self.ace_step_transformer = ACEStepTransformer2DModel.from_pretrained(ace_step_checkpoint_path)
-        self.ace_step_transformer.eval().to(self.dtype).to('cpu')
+        self.ace_step_transformer = ACEStepTransformer2DModel.from_pretrained(
+            ace_step_checkpoint_path
+        )
+        self.ace_step_transformer.eval().to(self.dtype).to("cpu")
         self.ace_step_transformer = torch.compile(self.ace_step_transformer)
         self.ace_step_transformer.load_state_dict(
             torch.load(
-                os.path.join(ace_step_checkpoint_path, "diffusion_pytorch_model_int4wo.bin"),
+                os.path.join(
+                    ace_step_checkpoint_path, "diffusion_pytorch_model_int4wo.bin"
+                ),
                 map_location=self.device,
-            ),assign=True
+            ),
+            assign=True,
         )
         self.ace_step_transformer.torchao_quantized = True
 
-        self.text_encoder_model = UMT5EncoderModel.from_pretrained(text_encoder_checkpoint_path)
-        self.text_encoder_model.eval().to(self.dtype).to('cpu')
+        self.text_encoder_model = UMT5EncoderModel.from_pretrained(
+            text_encoder_checkpoint_path
+        )
+        self.text_encoder_model.eval().to(self.dtype).to("cpu")
         self.text_encoder_model = torch.compile(self.text_encoder_model)
         self.text_encoder_model.load_state_dict(
             torch.load(
                 os.path.join(text_encoder_checkpoint_path, "pytorch_model_int4wo.bin"),
                 map_location=self.device,
-            ), assign=True
+            ),
+            assign=True,
         )
         self.text_encoder_model.torchao_quantized = True
 
@@ -599,7 +625,9 @@ class ACEStepPipeline:
 
         T_steps = infer_steps
         frame_length = src_latents.shape[-1]
-        attention_mask = torch.ones(bsz, frame_length, device=self.device, dtype=self.dtype)
+        attention_mask = torch.ones(
+            bsz, frame_length, device=self.device, dtype=self.dtype
+        )
 
         timesteps, T_steps = retrieve_timesteps(
             scheduler, T_steps, self.device, timesteps=None
@@ -704,9 +732,13 @@ class ACEStepPipeline:
                         attention_mask=attention_mask,
                         momentum_buffer=momentum_buffer,
                     )
-                    V_delta_avg += (1 / n_avg) * (Vt_tar - Vt_src)  # - (hfg - 1) * (x_src)
+                    V_delta_avg += (1 / n_avg) * (
+                        Vt_tar - Vt_src
+                    )  # - (hfg - 1) * (x_src)
 
-                zt_edit = zt_edit.to(torch.float32)  # arbitrary, should be settable for compatibility
+                zt_edit = zt_edit.to(
+                    torch.float32
+                )  # arbitrary, should be settable for compatibility
                 if scheduler_type != "pingpong":
                     # propagate direct ODE
                     zt_edit = zt_edit + (t_im1 - t_i) * V_delta_avg
@@ -714,7 +746,9 @@ class ACEStepPipeline:
                 else:
                     # propagate pingpong SDE
                     zt_edit_denoised = zt_edit - t_i * V_delta_avg
-                    noise = torch.empty_like(zt_edit).normal_(generator=random_generators[0] if random_generators else None)
+                    noise = torch.empty_like(zt_edit).normal_(
+                        generator=random_generators[0] if random_generators else None
+                    )
                     prev_sample = (1 - t_im1) * zt_edit_denoised + t_im1 * noise
 
             else:  # i >= T_steps-n_min # regular sampling for last n_min steps
@@ -759,7 +793,9 @@ class ACEStepPipeline:
                     xt_tar = prev_sample
                 else:
                     prev_sample = xt_tar - t_i * Vt_tar
-                    noise = torch.empty_like(zt_edit).normal_(generator=random_generators[0] if random_generators else None)
+                    noise = torch.empty_like(zt_edit).normal_(
+                        generator=random_generators[0] if random_generators else None
+                    )
                     prev_sample = (1 - t_im1) * prev_sample + t_im1 * noise
                     xt_tar = prev_sample
 
@@ -790,9 +826,7 @@ class ACEStepPipeline:
             )
         elif scheduler_type == "pingpong":
             scheduler = FlowMatchPingPongScheduler(
-                num_train_timesteps=1000,
-                shift=3.0,
-                sigma_max=sigma_max
+                num_train_timesteps=1000, shift=3.0, sigma_max=sigma_max
             )
 
         infer_steps = int(sigma_max * infer_steps)
@@ -802,8 +836,12 @@ class ACEStepPipeline:
             device=self.device,
             timesteps=None,
         )
-        noisy_image = gt_latents * (1 - scheduler.sigma_max) + noise * scheduler.sigma_max
-        logger.info(f"{scheduler.sigma_min=} {scheduler.sigma_max=} {timesteps=} {num_inference_steps=}")
+        noisy_image = (
+            gt_latents * (1 - scheduler.sigma_max) + noise * scheduler.sigma_max
+        )
+        logger.info(
+            f"{scheduler.sigma_min=} {scheduler.sigma_max=} {timesteps=} {num_inference_steps=}"
+        )
         return noisy_image, timesteps, scheduler, num_inference_steps
 
     @cpu_offload("ace_step_transformer")
@@ -890,7 +928,7 @@ class ACEStepPipeline:
         frame_length = int(duration * 44100 / 512 / 8)
         if src_latents is not None:
             frame_length = src_latents.shape[-1]
-        
+
         if ref_latents is not None:
             frame_length = ref_latents.shape[-1]
 
@@ -903,7 +941,9 @@ class ACEStepPipeline:
                 device=self.device,
                 timesteps=None,
             )
-            new_timesteps = torch.zeros(len(oss_steps), dtype=self.dtype, device=self.device)
+            new_timesteps = torch.zeros(
+                len(oss_steps), dtype=self.dtype, device=self.device
+            )
             for idx in range(len(oss_steps)):
                 new_timesteps[idx] = timesteps[oss_steps[idx] - 1]
             num_inference_steps = len(oss_steps)
@@ -938,7 +978,9 @@ class ACEStepPipeline:
         if add_retake_noise:
             n_min = int(infer_steps * (1 - retake_variance))
             retake_variance = (
-                torch.tensor(retake_variance * math.pi / 2).to(self.device).to(self.dtype)
+                torch.tensor(retake_variance * math.pi / 2)
+                .to(self.device)
+                .to(self.dtype)
             )
             retake_latents = randn_tensor(
                 shape=(bsz, 8, 16, frame_length),
@@ -1040,7 +1082,7 @@ class ACEStepPipeline:
                         :,
                         :,
                         :,
-                        left_trim_length: target_latents.shape[-1] - right_trim_length,
+                        left_trim_length : target_latents.shape[-1] - right_trim_length,
                     ]
                 )
                 if right_pad_frame_length > 0:
@@ -1056,15 +1098,19 @@ class ACEStepPipeline:
             logger.info(
                 f"audio2audio_enable: {audio2audio_enable}, ref_latents: {ref_latents.shape}"
             )
-            target_latents, timesteps, scheduler, num_inference_steps = self.add_latents_noise(
-                gt_latents=ref_latents,
-                sigma_max=(1-ref_audio_strength),
-                noise=target_latents,
-                scheduler_type=scheduler_type,
-                infer_steps=infer_steps,
+            target_latents, timesteps, scheduler, num_inference_steps = (
+                self.add_latents_noise(
+                    gt_latents=ref_latents,
+                    sigma_max=(1 - ref_audio_strength),
+                    noise=target_latents,
+                    scheduler_type=scheduler_type,
+                    infer_steps=infer_steps,
+                )
             )
 
-        attention_mask = torch.ones(bsz, frame_length, device=self.device, dtype=self.dtype)
+        attention_mask = torch.ones(
+            bsz, frame_length, device=self.device, dtype=self.dtype
+        )
 
         # guidance interval
         start_idx = int(num_inference_steps * ((1 - guidance_interval) / 2))
@@ -1359,7 +1405,9 @@ class ACEStepPipeline:
         pred_latents = latents
         with torch.no_grad():
             if self.overlapped_decode and target_wav_duration_second > 48:
-                _, pred_wavs = self.music_dcae.decode_overlap(pred_latents, sr=sample_rate)
+                _, pred_wavs = self.music_dcae.decode_overlap(
+                    pred_latents, sr=sample_rate
+                )
             else:
                 _, pred_wavs = self.music_dcae.decode(pred_latents, sr=sample_rate)
         pred_wavs = [pred_wav.cpu().float() for pred_wav in pred_wavs]
@@ -1382,13 +1430,17 @@ class ACEStepPipeline:
             base_path = "./outputs"
             ensure_directory_exists(base_path)
             output_path_wav = (
-                f"{base_path}/output_{time.strftime('%Y%m%d%H%M%S')}_{idx}."+format
+                f"{base_path}/output_{time.strftime('%Y%m%d%H%M%S')}_{idx}." + format
             )
         else:
             ensure_directory_exists(os.path.dirname(save_path))
             if os.path.isdir(save_path):
-                logger.info(f"Provided save_path '{save_path}' is a directory. Appending timestamped filename.")
-                output_path_wav = os.path.join(save_path, f"output_{time.strftime('%Y%m%d%H%M%S')}_{idx}."+format)
+                logger.info(
+                    f"Provided save_path '{save_path}' is a directory. Appending timestamped filename."
+                )
+                output_path_wav = os.path.join(
+                    save_path, f"output_{time.strftime('%Y%m%d%H%M%S')}_{idx}." + format
+                )
             else:
                 output_path_wav = save_path
 
@@ -1398,7 +1450,11 @@ class ACEStepPipeline:
             backend = "sox"
         logger.info(f"Saving audio to {output_path_wav} using backend {backend}")
         torchaudio.save(
-            output_path_wav, target_wav, sample_rate=sample_rate, format=format, backend=backend
+            output_path_wav,
+            target_wav,
+            sample_rate=sample_rate,
+            format=format,
+            backend=backend,
         )
         return output_path_wav
 
@@ -1413,16 +1469,29 @@ class ACEStepPipeline:
         return latents
 
     def load_lora(self, lora_name_or_path, lora_weight):
-        if (lora_name_or_path != self.lora_path or lora_weight != self.lora_weight) and lora_name_or_path != "none":
+        if (
+            lora_name_or_path != self.lora_path or lora_weight != self.lora_weight
+        ) and lora_name_or_path != "none":
             if not os.path.exists(lora_name_or_path):
-                lora_download_path = snapshot_download(lora_name_or_path, cache_dir=self.checkpoint_dir)
+                lora_download_path = snapshot_download(
+                    lora_name_or_path, cache_dir=self.checkpoint_dir
+                )
             else:
                 lora_download_path = lora_name_or_path
             if self.lora_path != "none":
                 self.ace_step_transformer.unload_lora()
-            self.ace_step_transformer.load_lora_adapter(os.path.join(lora_download_path, "pytorch_lora_weights.safetensors"), adapter_name="ace_step_lora", with_alpha=True, prefix=None)
-            logger.info(f"Loading lora weights from: {lora_name_or_path} download path is: {lora_download_path} weight: {lora_weight}")
-            set_weights_and_activate_adapters(self.ace_step_transformer, ["ace_step_lora"], [lora_weight])
+            self.ace_step_transformer.load_lora_adapter(
+                os.path.join(lora_download_path, "pytorch_lora_weights.safetensors"),
+                adapter_name="ace_step_lora",
+                with_alpha=True,
+                prefix=None,
+            )
+            logger.info(
+                f"Loading lora weights from: {lora_name_or_path} download path is: {lora_download_path} weight: {lora_weight}"
+            )
+            set_weights_and_activate_adapters(
+                self.ace_step_transformer, ["ace_step_lora"], [lora_weight]
+            )
             self.lora_path = lora_name_or_path
             self.lora_weight = lora_weight
         elif self.lora_path != "none" and lora_name_or_path == "none":
@@ -1470,7 +1539,7 @@ class ACEStepPipeline:
         batch_size: int = 1,
         debug: bool = False,
     ):
-
+        """generate music audio from text prompt and lyrics"""
         start_time = time.time()
 
         if audio2audio_enable and ref_audio_input is not None:
@@ -1500,14 +1569,18 @@ class ACEStepPipeline:
             oss_steps = []
 
         texts = [prompt]
-        encoder_text_hidden_states, text_attention_mask = self.get_text_embeddings(texts)
+        encoder_text_hidden_states, text_attention_mask = self.get_text_embeddings(
+            texts
+        )
         encoder_text_hidden_states = encoder_text_hidden_states.repeat(batch_size, 1, 1)
         text_attention_mask = text_attention_mask.repeat(batch_size, 1)
 
         encoder_text_hidden_states_null = None
         if use_erg_tag:
             encoder_text_hidden_states_null = self.get_text_embeddings_null(texts)
-            encoder_text_hidden_states_null = encoder_text_hidden_states_null.repeat(batch_size, 1, 1)
+            encoder_text_hidden_states_null = encoder_text_hidden_states_null.repeat(
+                batch_size, 1, 1
+            )
 
         # not support for released checkpoint
         speaker_embeds = torch.zeros(batch_size, 512).to(self.device).to(self.dtype)
@@ -1556,10 +1629,12 @@ class ACEStepPipeline:
                 src_audio_path
             ), f"src_audio_path {src_audio_path} does not exist"
             src_latents = self.infer_latents(src_audio_path)
-        
+
         ref_latents = None
         if ref_audio_input is not None and audio2audio_enable:
-            assert ref_audio_input is not None, "ref_audio_input is required for audio2audio task"
+            assert (
+                ref_audio_input is not None
+            ), "ref_audio_input is required for audio2audio task"
             assert os.path.exists(
                 ref_audio_input
             ), f"ref_audio_input {ref_audio_input} does not exist"
