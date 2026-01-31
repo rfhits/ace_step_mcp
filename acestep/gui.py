@@ -68,7 +68,8 @@ def main(checkpoint_path, server_name, port, device_id, share, bf16, torch_compi
     data_sampler = DataSampler()
 
     demo = create_main_demo_ui(
-        text2music_process_func=model_demo.__call__,
+        # text2music_process_func=model_demo.__call__,
+        text2music_process_func=model_demo.generate_music,
         sample_data_func=data_sampler.sample,
         load_data_func=data_sampler.load_json,
     )

@@ -1802,3 +1802,97 @@ class ACEStepPipeline:
                 json.dump(input_params_json, f, indent=4, ensure_ascii=False)
 
         return output_paths + [input_params_json]
+
+    def generate_music(
+        self,
+        format: str = "wav",
+        audio_duration: float = 60.0,
+        prompt: str = None,
+        lyrics: str = None,
+        infer_step: int = 60,
+        guidance_scale: float = 15.0,
+        scheduler_type: str = "euler",
+        cfg_type: str = "apg",
+        omega_scale: int = 10.0,
+        manual_seeds: list = None,
+        guidance_interval: float = 0.5,
+        guidance_interval_decay: float = 0.0,
+        min_guidance_scale: float = 3.0,
+        use_erg_tag: bool = True,
+        use_erg_lyric: bool = True,
+        use_erg_diffusion: bool = True,
+        oss_steps: str = None,
+        guidance_scale_text: float = 0.0,
+        guidance_scale_lyric: float = 0.0,
+        audio2audio_enable: bool = False,
+        ref_audio_strength: float = 0.5,
+        ref_audio_input: str = None,
+        lora_name_or_path: str = "none",
+        lora_weight: float = 1.0,
+        retake_seeds: list = None,
+        retake_variance: float = 0.5,
+        task: str = "text2music",
+        repaint_start: int = 0,
+        repaint_end: int = 0,
+        src_audio_path: str = None,
+        edit_target_prompt: str = None,
+        edit_target_lyrics: str = None,
+        edit_n_min: float = 0.0,
+        edit_n_max: float = 1.0,
+        edit_n_avg: int = 1,
+        save_path: str = None,
+        batch_size: int = 1,
+        debug: bool = False,
+    ):
+        """generate music audio from text prompt and lyrics.
+        
+        the mainly usage only includes the four arguments, leave other arguments as default values.
+        
+        Args:
+            format: audio format, wav, mp3, .etc. Defaults to "wav".
+            audio_duration: duration of generated audio in seconds. Defaults to 60.0.
+            prompt: text prompt for music generation. Defaults to None.
+            lyrics: lyrics for music generation. Defaults to None.
+
+        
+        """
+        return self.__call__(
+            format=format,
+            audio_duration=audio_duration,
+            prompt=prompt,
+            lyrics=lyrics,
+            infer_step=infer_step,
+            guidance_scale=guidance_scale,
+            scheduler_type=scheduler_type,
+            cfg_type=cfg_type,
+            omega_scale=omega_scale,
+            manual_seeds=manual_seeds,
+            guidance_interval=guidance_interval,
+            guidance_interval_decay=guidance_interval_decay,
+            min_guidance_scale=min_guidance_scale,
+            use_erg_tag=use_erg_tag,
+            use_erg_lyric=use_erg_lyric,
+            use_erg_diffusion=use_erg_diffusion,
+            oss_steps=oss_steps,
+            guidance_scale_text=guidance_scale_text,
+            guidance_scale_lyric=guidance_scale_lyric,
+            audio2audio_enable=audio2audio_enable,
+            ref_audio_strength=ref_audio_strength,
+            ref_audio_input=ref_audio_input,
+            lora_name_or_path=lora_name_or_path,
+            lora_weight=lora_weight,
+            retake_seeds=retake_seeds,
+            retake_variance=retake_variance,
+            task=task,
+            repaint_start=repaint_start,
+            repaint_end=repaint_end,
+            src_audio_path=src_audio_path,
+            edit_target_prompt=edit_target_prompt,
+            edit_target_lyrics=edit_target_lyrics,
+            edit_n_min=edit_n_min,
+            edit_n_max=edit_n_max,
+            edit_n_avg=edit_n_avg,
+            save_path=save_path,
+            batch_size=batch_size,
+            debug=debug,
+        )

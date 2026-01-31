@@ -60,8 +60,9 @@ GENRE_PRESETS = {
     "Classical": "classical, orchestral, strings, piano, 60 bpm, elegant, emotive, timeless, instrumental",
     "Jazz": "jazz, saxophone, piano, double bass, 110 bpm, smooth, improvisational, soulful, male vocals, crooning vocals",
     "Metal": "metal, electric guitar, double kick drum, bass, 160 bpm, aggressive, intense, heavy, male vocals, screamed vocals",
-    "R&B": "r&b, synth, bass, drums, 85 bpm, sultry, groovy, romantic, female vocals, silky vocals"
+    "R&B": "r&b, synth, bass, drums, 85 bpm, sultry, groovy, romantic, female vocals, silky vocals",
 }
+
 
 # Add this function to handle preset selection
 def update_tags_from_preset(preset_name):
@@ -100,9 +101,14 @@ def create_text2music_ui(
         output_file_dir = os.environ.get("ACE_OUTPUT_DIR", "./outputs")
         if not os.path.isdir(output_file_dir):
             os.makedirs(output_file_dir, exist_ok=True)
-        json_files = [f for f in os.listdir(output_file_dir) if f.endswith('.json')]
-        json_files.sort(reverse=True, key=lambda x: int(x.split('_')[1]))
-        output_files = gr.Dropdown(choices=json_files, label="Select previous generated input params", scale=9, interactive=True)
+        json_files = [f for f in os.listdir(output_file_dir) if f.endswith(".json")]
+        json_files.sort(reverse=True, key=lambda x: int(x.split("_")[1]))
+        output_files = gr.Dropdown(
+            choices=json_files,
+            label="Select previous generated input params",
+            scale=9,
+            interactive=True,
+        )
         load_bnt = gr.Button("Load", variant="primary", scale=1)
 
     with gr.Row():
@@ -119,22 +125,37 @@ def create_text2music_ui(
                     info="-1 means random duration (30 ~ 240).",
                     scale=9,
                 )
-                format = gr.Dropdown(choices=["mp3", "ogg", "flac", "wav"], value="wav", label="Format")
+                format = gr.Dropdown(
+                    choices=["mp3", "ogg", "flac", "wav"], value="wav", label="Format"
+                )
                 sample_bnt = gr.Button("Sample", variant="secondary", scale=1)
 
             # audio2audio
             with gr.Row(equal_height=True):
-                audio2audio_enable = gr.Checkbox(label="Enable Audio2Audio", value=False, info="Check to enable Audio-to-Audio generation using a reference audio.", elem_id="audio2audio_checkbox")
+                audio2audio_enable = gr.Checkbox(
+                    label="Enable Audio2Audio",
+                    value=False,
+                    info="Check to enable Audio-to-Audio generation using a reference audio.",
+                    elem_id="audio2audio_checkbox",
+                )
                 lora_name_or_path = gr.Dropdown(
                     label="Lora Name or Path",
                     choices=["ACE-Step/ACE-Step-v1-chinese-rap-LoRA", "none"],
                     value="none",
                     allow_custom_value=True,
-                    min_width=300
+                    min_width=300,
                 )
-                lora_weight = gr.Number(value=1.0, label="Lora weight", step=0.1, maximum=3, minimum=-3)
+                lora_weight = gr.Number(
+                    value=1.0, label="Lora weight", step=0.1, maximum=3, minimum=-3
+                )
 
-            ref_audio_input = gr.Audio(type="filepath", label="Reference Audio (for Audio2Audio)", visible=False, elem_id="ref_audio_input", show_download_button=True)
+            ref_audio_input = gr.Audio(
+                type="filepath",
+                label="Reference Audio (for Audio2Audio)",
+                visible=False,
+                elem_id="ref_audio_input",
+                show_download_button=True,
+            )
             ref_audio_strength = gr.Slider(
                 label="Refer audio strength",
                 minimum=0.0,
@@ -160,7 +181,9 @@ def create_text2music_ui(
 
             with gr.Column(scale=2):
                 with gr.Group():
-                    gr.Markdown("""<center>Support tags, descriptions, and scene. Use commas to separate different tags.<br>Tags and lyrics examples are from AI music generation community.</center>""")
+                    gr.Markdown(
+                        """<center>Support tags, descriptions, and scene. Use commas to separate different tags.<br>Tags and lyrics examples are from AI music generation community.</center>"""
+                    )
                     with gr.Row():
                         genre_preset = gr.Dropdown(
                             choices=["Custom"] + list(GENRE_PRESETS.keys()),
@@ -178,12 +201,12 @@ def create_text2music_ui(
 
             # Add the change event for the preset dropdown
             genre_preset.change(
-                fn=update_tags_from_preset,
-                inputs=[genre_preset],
-                outputs=[prompt]
+                fn=update_tags_from_preset, inputs=[genre_preset], outputs=[prompt]
             )
             with gr.Group():
-                gr.Markdown("""<center>Support lyric structure tags like [verse], [chorus], and [bridge] to separate different parts of the lyrics.<br>Use [instrumental] or [inst] to generate instrumental music. Not support genre structure tag in lyrics</center>""")
+                gr.Markdown(
+                    """<center>Support lyric structure tags like [verse], [chorus], and [bridge] to separate different parts of the lyrics.<br>Use [instrumental] or [inst] to generate instrumental music. Not support genre structure tag in lyrics</center>"""
+                )
                 lyrics = gr.Textbox(
                     lines=9,
                     label="Lyrics",
@@ -355,8 +378,16 @@ def create_text2music_ui(
                         retake_seeds=retake_seeds,
                         retake_variance=retake_variance,
                         task="retake",
-                        lora_name_or_path="none" if "lora_name_or_path" not in json_data else json_data["lora_name_or_path"],
-                        lora_weight=1 if "lora_weight" not in json_data else json_data["lora_weight"]
+                        lora_name_or_path=(
+                            "none"
+                            if "lora_name_or_path" not in json_data
+                            else json_data["lora_name_or_path"]
+                        ),
+                        lora_weight=(
+                            1
+                            if "lora_weight" not in json_data
+                            else json_data["lora_weight"]
+                        ),
                     )
 
                 retake_bnt.click(
@@ -480,8 +511,16 @@ def create_text2music_ui(
                         repaint_start=repaint_start,
                         repaint_end=repaint_end,
                         src_audio_path=src_audio_path,
-                        lora_name_or_path="none" if "lora_name_or_path" not in json_data else json_data["lora_name_or_path"],
-                        lora_weight=1 if "lora_weight" not in json_data else json_data["lora_weight"]
+                        lora_name_or_path=(
+                            "none"
+                            if "lora_name_or_path" not in json_data
+                            else json_data["lora_name_or_path"]
+                        ),
+                        lora_weight=(
+                            1
+                            if "lora_weight" not in json_data
+                            else json_data["lora_weight"]
+                        ),
                     )
 
                 repaint_bnt.click(
@@ -656,8 +695,16 @@ def create_text2music_ui(
                         edit_n_min=edit_n_min,
                         edit_n_max=edit_n_max,
                         retake_seeds=retake_seeds,
-                        lora_name_or_path="none" if "lora_name_or_path" not in json_data else json_data["lora_name_or_path"],
-                        lora_weight=1 if "lora_weight" not in json_data else json_data["lora_weight"]
+                        lora_name_or_path=(
+                            "none"
+                            if "lora_name_or_path" not in json_data
+                            else json_data["lora_name_or_path"]
+                        ),
+                        lora_weight=(
+                            1
+                            if "lora_weight" not in json_data
+                            else json_data["lora_weight"]
+                        ),
                     )
 
                 edit_bnt.click(
@@ -983,7 +1030,7 @@ def create_text2music_ui(
             ref_audio_strength,
             ref_audio_input,
             lora_name_or_path,
-            lora_weight
+            lora_weight,
         ],
         outputs=outputs + [input_params_json],
     )
