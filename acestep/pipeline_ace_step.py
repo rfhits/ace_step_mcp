@@ -1803,7 +1803,7 @@ class ACEStepPipeline:
 
         return output_paths + [input_params_json]
 
-    def generate_music(
+    def generate_music_sync(
         self,
         format: str = "wav",
         audio_duration: float = 60.0,
